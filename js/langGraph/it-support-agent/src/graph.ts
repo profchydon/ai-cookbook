@@ -1,7 +1,7 @@
 import { Annotation, StateGraph } from "@langchain/langgraph";
 import { Feedback, Message, MessageType, Support, SupportType } from "./types";
-import { processFeedbackEdges, processMessageEdges, processSupportBugEdges, processSupportEdges } from "./edges";
-import { processMessage, processFeedback, processSupport, processOther, supportBug, supportTechnicalQuestion, bugSeverityLow, bugSeverityMedium, bugSeverityHigh, feedbackPositive, feedbackNegative, draftEmail } from "./nodes";
+import { conversationHandlerEdges, processFeedbackEdges, processMessageEdges, processSupportBugEdges, processSupportEdges } from "./edges";
+import { processMessage, processFeedback, processSupport, processOther, supportBug, supportTechnicalQuestion, bugSeverityLow, bugSeverityMedium, bugSeverityHigh, feedbackPositive, feedbackNegative, draftEmail, conversationHandler } from "./nodes";
 
 const graphAnnotation = Annotation.Root({
   message: Annotation<Message>(),
@@ -28,20 +28,21 @@ export function createGraph() {
   .addNode("feedback-positive", feedbackPositive)
   .addNode("feedback-negative", feedbackNegative)
   .addNode("draft-email", draftEmail)
+  .addNode("conversation-handler", conversationHandler)
 
   .addEdge("__start__", "process-message")
   .addConditionalEdges("process-message", processMessageEdges)
   .addConditionalEdges("process-feedback", processFeedbackEdges)
   .addConditionalEdges("process-support", processSupportEdges)
   .addConditionalEdges("support-bug", processSupportBugEdges)
+  .addConditionalEdges("process-other", conversationHandlerEdges)
+  .addConditionalEdges("conversation-handler", conversationHandlerEdges)
   .addEdge("bug-severity-low", "draft-email")
   .addEdge("bug-severity-medium", "draft-email")
   .addEdge("bug-severity-high", "draft-email")
   .addEdge("feedback-negative", "draft-email")
   .addEdge("feedback-positive", "draft-email")
   .addEdge("support-question", "draft-email")
-  .addEdge("process-other", "__end__")
-
   .addEdge("draft-email", "__end__");
 
   const graph = workflow.compile();

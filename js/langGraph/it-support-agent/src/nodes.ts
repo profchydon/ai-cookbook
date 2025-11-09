@@ -7,21 +7,44 @@ import { z } from "zod";
 import { HumanMessage } from "@langchain/core/messages";
 import { getUserFromEmail } from "./utils";
 
+export const agent = new ChatOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  model: "openai/gpt-4.1-mini",
+  temperature: 0,
+  configuration: {
+    baseURL: process.env.OPENROUTER_BASE_URL,
+  },
+});
+
+export const conversationHandler = async (state: State) => {
+  const SYSTEM_PROMPT =
+    `You are an expert support agent.  You are to keep conversation ongoing until the user's intent is identified. 
+    `;
+  const response = await agent.invoke([
+    [
+      "system",
+      SYSTEM_PROMPT,
+    ],
+    ["user", state.message.message],
+  ]);
+
+  console.log("Conversation Agent Response", response.content);
+  
+  return {
+    message: response.content,
+  };
+}
+
 export const processMessage = async (state: State): Promise<Update> => {
 
-  const llm = new ChatOpenAI({
-    model: "gpt-4o-mini",
-    temperature: 0,
-  });
-
-  const structuredllm = llm.withStructuredOutput(
+  const structuredllm = agent.withStructuredOutput(
     z.object({
       type: z.enum(["Feedback", "Support", "Spam", "Other"]).describe("The type of the complaint"),
       reason: z.string().describe("The reason why you selected the type"),
     })
   );
 
-  const SYSTEM_PROMPT = 
+  const SYSTEM_PROMPT =
     `You are an expert email-analizer AI.  You are given emails and you give them one of the avaliable labels. 
     You answer with a json of this structure: 
     {
@@ -52,12 +75,7 @@ export const processFeedback = async (state: State): Promise<Update> => {
 
   const user = getUserFromEmail(state.message.sender);
 
-  const llm = new ChatOpenAI({
-    model: "gpt-4o-mini",
-    temperature: 0,
-  });
-
-  const structuredllm = llm.withStructuredOutput(
+  const structuredllm = agent.withStructuredOutput(
     z.object({
       isPositive: z.boolean().describe("Whether the feedback is positive or negative"),
       reason: z.string().describe("The reason why you selected the type"),
@@ -95,12 +113,7 @@ export const processFeedback = async (state: State): Promise<Update> => {
 export const processSupport = async (state: State): Promise<Update> => {
   const userId = getUserFromEmail(state.message.sender);
 
-  const llm = new ChatOpenAI({
-    temperature: 0,
-    model: "gpt-4o-mini",
-  });
-
-  const structuredLlm = llm.withStructuredOutput(
+  const structuredLlm = agent.withStructuredOutput(
     z.object({
       type: z
         .enum(["Bug", "TechnicalQuestion"])
@@ -138,12 +151,7 @@ export const processOther = async (state: State): Promise<Update> => {
 };
 
 export const supportBug = async (state: State): Promise<Update> => {
-  const llm = new ChatOpenAI({
-    temperature: 0,
-    model: "gpt-4o-mini",
-  });
-
-  const structuredLlm = llm.withStructuredOutput(
+  const structuredLlm = agent.withStructuredOutput(
     z.object({
       severity: z
         .enum(["high", "medium", "low"])
@@ -195,12 +203,7 @@ export const supportTechnicalQuestion = async (
     },
   ];
 
-  const llm = new ChatOpenAI({
-    temperature: 0,
-    model: "gpt-4o-mini",
-  });
-
-  const structuredLlm = llm.withStructuredOutput(
+  const structuredLlm = agent.withStructuredOutput(
     z.object({
       answer: z.string().describe("A answer based on the provided documents"),
       answerFound: z

@@ -2,6 +2,9 @@ import { createGraph } from "./graph";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import swaggerJsdoc from "swagger-jsdoc";
+import type { Options } from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
 // Load environment variables
 dotenv.config();
@@ -13,6 +16,136 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+const swaggerOptions: Options = {
+  definition: {
+    openapi: "3.1.0",
+    info: {
+      title: "IT Support AI Agent API",
+      version: "1.0.0",
+      description:
+        "API documentation for interacting with the IT Support AI Agent built with LangGraph."
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: "Local development server"
+      }
+    ],
+    components: {
+      schemas: {
+        ChatRequest: {
+          type: "object",
+          required: ["message"],
+          properties: {
+            message: {
+              type: "string",
+              description: "End-user message to send to the IT Support AI agent"
+            },
+            sender: {
+              type: "string",
+              description: "Email address identifying the message originator",
+              example: "user@company.com"
+            }
+          }
+        },
+        ChatResponse: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean"
+            },
+            response: {
+              type: "object",
+              description: "Raw response returned by the LangGraph engine"
+            },
+            originalMessage: {
+              type: "string"
+            },
+            sender: {
+              type: "string"
+            }
+          }
+        },
+        ErrorResponse: {
+          type: "object",
+          properties: {
+            error: {
+              type: "string"
+            },
+            message: {
+              type: "string"
+            }
+          }
+        }
+      }
+    },
+    paths: {
+      "/health": {
+        get: {
+          summary: "Health check",
+          description: "Check whether the IT Support AI Agent server is running.",
+          responses: {
+            "200": {
+              description: "Server is healthy"
+            }
+          }
+        }
+      },
+      "/chat": {
+        post: {
+          summary: "Send a message to the IT Support AI Agent",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ChatRequest"
+                }
+              }
+            }
+          },
+          responses: {
+            "200": {
+              description: "Successful response from the AI agent",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ChatResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Invalid request payload",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Internal server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  apis: []
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Initialize the graph
 const graph = createGraph();
 
@@ -22,7 +155,7 @@ app.get("/health", (req, res) => {
 });
 
 // Main endpoint to handle user requests
-app.post("/support", async (req, res) => {
+app.post("/chat", async (req, res) => {
   try {
     const { message, sender = "user@company.com" } = req.body;
     

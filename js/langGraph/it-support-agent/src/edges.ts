@@ -9,7 +9,7 @@ export const processMessageEdges = (state: State) => {
     case "Spam":
       return "process-spam";
     case "Other":
-      return "process-other";
+      return "conversation-handler";
     default:
       return "__end__";
   }
@@ -51,4 +51,8 @@ export const processSupportBugEdges = async (
     default:
       return "bug-severity-low";
   }
+};
+
+export const conversationHandlerEdges = (state: State) => {
+  return state.messageType === "Other" ? "conversation-handler" : "__end__";
 };
